@@ -47,7 +47,7 @@ def calculate_gradient(y, tx, w):
     ret = (1/y.shape[0])*tx.T.dot(pred-y)
     return ret
 
-def learning_by_gradient_descent_ridge(y, tx, w, gamma, lambda_):
+def learning_by_gradient_descent_ridge_lasso(y, tx, w, gamma, lambda1, lambda2):
     """
     Do one step of gradient descent using logistic regression. Return the loss and the updated w.
 
@@ -61,8 +61,8 @@ def learning_by_gradient_descent_ridge(y, tx, w, gamma, lambda_):
         loss: scalar number
         w: shape=(D, 1)
     """
-    loss = calculate_loss(y, tx, w)
-    gradient = calculate_gradient(y, tx, w) + 2 * lambda_ * w
+    loss = calculate_loss(y, tx, w) + lambda2 * np.squeeze(w.T.dot(w)) + lambda1 * np.sum(np.abs(w))
+    gradient = calculate_gradient(y, tx, w) + 2 * lambda2 * w + lambda1 * np.sign(w)
     w_new = w - gamma * gradient
     return loss, w_new
 
