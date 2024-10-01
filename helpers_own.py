@@ -15,7 +15,7 @@ def sigmoid(t):
     """
     return np.exp(t) / (1 + np.exp(t))
 
-def calculate_loss(y, tx, w):
+def calculate_loss(y, tx, w, lambda1=0, lambda2=0):
     """compute the cost by negative log likelihood.
 
     Args:
@@ -29,7 +29,7 @@ def calculate_loss(y, tx, w):
     assert y.shape[0] == tx.shape[0]
     assert tx.shape[1] == w.shape[0]
     pred = sigmoid(tx.dot(w))
-    loss = y.T.dot(np.log(pred)) + (1 - y).T.dot(np.log(1 - pred))
+    loss = y.T.dot(np.log(pred)) + (1 - y).T.dot(np.log(1 - pred)) + lambda2 * np.squeeze(w.T.dot(w)) + lambda1 * np.sum(np.abs(w))
     return np.squeeze(-loss).item() * (1 / y.shape[0])
 
 def calculate_gradient(y, tx, w):
