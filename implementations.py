@@ -61,7 +61,7 @@ def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
-    return w_shaped, loss
+    return w_shaped.ravel() , loss
 
 
 
