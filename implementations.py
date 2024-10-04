@@ -12,6 +12,34 @@ def compute_gradient(y, tx, w):
     return -1/N * tx.T.dot(y - tx.dot(w))
 
 def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
+    """
+    Performs gradient descent to minimize the mean squared error (MSE) loss.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values, of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    initial_w : numpy.ndarray
+        The initial weights, of shape (n_features,).
+    
+    max_iters : int
+        The number of iterations to run gradient descent.
+    
+    gamma : float
+        The learning rate or step size.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after gradient descent, of shape (n_features,).
+
+    loss : numpy.ndarray
+        The final loss value (MSE) after gradient descent, with shape (0,).
+    """
     w = initial_w
     loss = compute_loss_linear(y, tx, w)
     for n_iter in range(max_iters):
@@ -21,6 +49,35 @@ def mean_squared_error_gd(y, tx, initial_w, max_iters, gamma):
     return w, np.array(loss)
 
 def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
+    """
+    Performs stochastic gradient descent (SGD) to minimize the mean squared error (MSE) loss.
+    In each iteration, a random one-dimentional sample from the dataset is used to compute the gradient and update the weights.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values, of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    initial_w : numpy.ndarray
+        The initial weights, of shape (n_features,).
+    
+    max_iters : int
+        The number of iterations to run stochastic gradient descent.
+    
+    gamma : float
+        The learning rate or step size.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after stochastic gradient descent, of shape (n_features,).
+
+    loss : numpy.ndarray
+        The final loss value (MSE) after stochastic gradient descent, with shape (0,).
+    """
     w = initial_w
     loss = compute_loss_linear(y, tx, w)
     for n_iter in range(max_iters):
@@ -35,6 +92,25 @@ def mean_squared_error_sgd(y, tx, initial_w, max_iters, gamma):
 #----------------------------------------------------Least square------------------------------------
 
 def least_squares(y, tx):
+    """
+    Performs least squares regression to find the optimal weights.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values, of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The optimal weights that minimize the least squares loss, of shape (n_features,).
+
+    loss : numpy.ndarray
+        The final loss value (MSE) associated with the optimal weights, with shape (0,).
+    """
     a = tx.T.dot(tx)
     b = tx.T.dot(y)
     w = np.linalg.solve(a, b)
@@ -42,6 +118,28 @@ def least_squares(y, tx):
     return w, np.array(loss)
 
 def ridge_regression(y, tx, lambda_):
+    """
+    Performs least square with added ridge term to find the optimal weights with L2 regularization.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values, of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    lambda_ : float
+        The regularization parameter (lambda) to control the strength of regularization.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The optimal weights that minimize the ridge regression loss, of shape (n_features,).
+
+    loss : numpy.ndarray
+        The final loss value (MSE) associated with the optimal weights, with shape (0,).
+    """
     aI = 2 * tx.shape[0] * lambda_ * np.identity(tx.shape[1])
     a = tx.T.dot(tx) + aI
     b = tx.T.dot(y)
@@ -76,6 +174,34 @@ def learning_by_gradient_descent(y, tx, w, gamma):
     return loss, w_new
 
 def logistic_regression(y, x, initial_w, max_iters, gamma):
+    """
+    Performs logistic regression using gradient descent.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    x : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    initial_w : numpy.ndarray
+        The initial weights for the logistic regression model, of shape (n_features,).
+    
+    max_iters : int
+        The maximum number of iterations for the gradient descent algorithm.
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after training, of shape (n_features,).
+    
+    loss : numpy.ndarray
+        The final loss value associated with the optimal weights, with shape (0,).
+    """
     # init parameters
     threshold = 1e-8
     losses = []
@@ -96,6 +222,37 @@ def logistic_regression(y, x, initial_w, max_iters, gamma):
 
 
 def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
+    """
+    Performs logistic regression with L2 regularization using gradient descent.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    x : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    lambda_ : float
+        The regularization parameter to control the amount of L2 regularization.
+    
+    initial_w : numpy.ndarray
+        The initial weights for the logistic regression model, of shape (n_features,).
+    
+    max_iters : int
+        The maximum number of iterations for the gradient descent algorithm.
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after training with L2 regularization, of shape (n_features,).
+    
+    loss : numpy.ndarray
+        The final loss value associated with the optimal weights, with shape (0,).
+    """
      # init parameters
     threshold = 1e-8
     losses = []
