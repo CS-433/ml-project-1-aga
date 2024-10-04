@@ -33,59 +33,35 @@ def calculate_loss_logistic(y, tx, w):
     return np.squeeze(-loss).item() * (1 / y.shape[0])
 
 def calculate_gradient(y, tx, w):
-    """compute the gradient of loss.
-
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1)
-
-    Returns:
-        a vector of shape (D, 1)
-    """
     pred = sigmoid(tx.dot(w))
     ret = (1/y.shape[0])*tx.T.dot(pred-y)
     return ret
 
 def learning_by_gradient_descent_ridge(y, tx, w, gamma, lambda_):
-    """
-    Do one step of gradient descent using logistic regression. Return the loss and the updated w.
-
-    Args:
-        y:  shape=(N, 1)
-        tx: shape=(N, D)
-        w:  shape=(D, 1)
-        gamma: float
-
-    Returns:
-        loss: scalar number
-        w: shape=(D, 1)
-    """
-    loss = calculate_loss_logistic(y, tx, w)
     gradient = calculate_gradient(y, tx, w) + 2 * lambda_ * w
     w_new = w - gamma * gradient
+    loss = calculate_loss_logistic(y, tx, w_new)
     return loss, w_new
 
 def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
      # init parameters
-    threshold = 1e-7
+    threshold = 1e-8
     losses = []
 
-    # build tx
-    w = np.zeros((x.shape[1], 1))
     y_shaped = y[:, np.newaxis]
+    w_shaped = initial_w[:, np.newaxis]
+    loss = calculate_loss_logistic(y_shaped, x, w_shaped)
 
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
-        loss, w = learning_by_gradient_descent_ridge(y_shaped, x, w, gamma, lambda_)
+        loss, w_shaped = learning_by_gradient_descent_ridge(y_shaped, x, w_shaped, gamma, lambda_)
         # converge criterion
         print("Current iteration={i}, loss={l}".format(i=iter, l=loss))
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
-        print(w)
-    return w, loss
+    return w_shaped, loss
 
 
 
