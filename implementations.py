@@ -4,10 +4,51 @@ import os
 #--------------------------------------------------Linear gradient--------------
 
 def compute_loss_linear(y, tx, w):
+    """
+    Computes the Mean Squared Error (MSE) loss for linear regression.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values (actual outputs), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix (input data), of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The weight vector for the linear regression model, of shape (n_features,).
+
+    Returns:
+    --------
+    float
+        The MSE loss, which represents how well the model is performing. 
+        The smaller the loss, the better the model fits the data.
+    """
     y_predicted = tx.dot(w)
     return 1/2 * np.mean((y - y_predicted) ** 2)
 
 def compute_gradient(y, tx, w):
+    """
+    Computes the gradient of the MSE loss function with respect to the weight vector.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target values (actual outputs), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix (input data), of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The weight vector for the linear regression model, of shape (n_features,).
+
+    Returns:
+    --------
+    numpy.ndarray
+        The gradient vector of shape (n_features,), which indicates the direction 
+        and magnitude of the steepest ascent of the loss function. It will be used 
+        in gradient descent to update the weights in the direction of minimizing the loss.
+    """
     N = y.shape[0]
     return -1/N * tx.T.dot(y - tx.dot(w))
 
@@ -152,23 +193,119 @@ def sigmoid(t):
     return np.exp(t) / (1 + np.exp(t))
 
 def calculate_loss_logistic(y, tx, w):
+    """
+    Computes the logistic loss for binary classification.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The weight vector for the logistic regression model, of shape (n_features,).
+
+    Returns:
+    --------
+    float
+        The average logistic loss over all samples.
+    """
     pred = sigmoid(tx.dot(w))
-    loss = y.T.dot(np.log(pred)) + (1 - y).T.dot(np.log(1 - pred))
-    return np.squeeze(-loss).item() * (1 / y.shape[0])
+    loss = y * np.log(pred) + (1 - y) * np.log(1 - pred)
+    return np.mean(-loss)
 
 def calculate_gradient(y, tx, w):
+    """
+    Computes the gradient of the logistic loss with respect to the weight vector.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The weight vector for the logistic regression model, of shape (n_features,).
+
+    Returns:
+    --------
+    numpy.ndarray
+        The gradient vector of shape (n_features,), which indicates the direction 
+        and magnitude of the steepest ascent of the logistic loss function.
+    """
     pred = sigmoid(tx.dot(w))
-    ret = (1/y.shape[0])*tx.T.dot(pred-y)
-    return ret
+    gradient = (1/y.shape[0])*tx.T.dot(pred - y)
+    return gradient
 
 def learning_by_gradient_descent_ridge(y, tx, w, gamma, lambda_):
+    """
+    Performs one step of gradient descent for logistic regression with L2 regularization (Ridge).
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The current weight vector, of shape (n_features,).
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+    
+    lambda_ : float
+        The regularization parameter for Ridge regression.
+
+    Returns:
+    --------
+    float
+        The logistic loss after the weight update.
+    
+    numpy.ndarray
+        The updated weight vector, of shape (n_features,).
+    """
+    # Compute the gradient with L2 regularization term
     gradient = calculate_gradient(y, tx, w) + 2 * lambda_ * w
+    # Update weights using gradient descent
     w_new = w - gamma * gradient
     loss = calculate_loss_logistic(y, tx, w_new)
     return loss, w_new
 
 def learning_by_gradient_descent(y, tx, w, gamma):
+    """
+    Performs one step of gradient descent for logistic regression without regularization.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The current weight vector, of shape (n_features,).
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    float
+        The logistic loss after the weight update.
+    
+    numpy.ndarray
+        The updated weight vector, of shape (n_features,).
+    """
+    # Compute the gradient without regularization
     gradient = calculate_gradient(y, tx, w)
+    # Update weights using gradient descent
     w_new = w - gamma * gradient
     loss = calculate_loss_logistic(y, tx, w_new)
     return loss, w_new
@@ -206,19 +343,18 @@ def logistic_regression(y, x, initial_w, max_iters, gamma):
     threshold = 1e-8
     losses = []
 
-    y_shaped = y[:, np.newaxis]
-    w_shaped = initial_w[:, np.newaxis]
-    loss = calculate_loss_logistic(y_shaped, x, w_shaped)
-
+    w = initial_w
+    loss = calculate_loss_logistic(y, x, w)
+    
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
-        loss, w_shaped = learning_by_gradient_descent(y_shaped, x, w_shaped, gamma)
+        loss, w = learning_by_gradient_descent(y, x, w, gamma)
         # converge criterion
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
-    return w_shaped.ravel(), np.array(loss) 
+    return w, np.array(loss) 
 
 
 def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
@@ -253,23 +389,22 @@ def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
     loss : numpy.ndarray
         The final loss value associated with the optimal weights, with shape (0,).
     """
-     # init parameters
+        # init parameters
     threshold = 1e-8
     losses = []
 
-    y_shaped = y[:, np.newaxis]
-    w_shaped = initial_w[:, np.newaxis]
-    loss = calculate_loss_logistic(y_shaped, x, w_shaped)
-
+    w = initial_w
+    loss = calculate_loss_logistic(y, x, w)
+    
     # start the logistic regression
     for iter in range(max_iters):
         # get loss and update w.
-        loss, w_shaped = learning_by_gradient_descent_ridge(y_shaped, x, w_shaped, gamma, lambda_)
+        loss, w = learning_by_gradient_descent_ridge(y, x, w, gamma, lambda_)
         # converge criterion
         losses.append(loss)
         if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
             break
-    return w_shaped.ravel(), np.array(loss)
+    return w, np.array(loss) 
 
 
 
