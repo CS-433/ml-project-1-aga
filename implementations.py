@@ -190,6 +190,7 @@ def ridge_regression(y, tx, lambda_):
     
 #----------------------------------------------------logistic---------------------------------------------
 def sigmoid(t):
+    t = np.clip(t, -250, 250)  # Clip the input to avoid overflow
     return np.exp(t) / (1 + np.exp(t))
 
 def calculate_loss_logistic(y, tx, w):
@@ -213,7 +214,8 @@ def calculate_loss_logistic(y, tx, w):
         The average logistic loss over all samples.
     """
     pred = sigmoid(tx.dot(w))
-    loss = y * np.log(pred) + (1 - y) * np.log(1 - pred)
+    epsilon = 1e-10
+    loss = y * np.log(np.clip(pred, epsilon, 1 - epsilon)) + (1 - y) * np.log(np.clip(1 - pred, epsilon, 1 - epsilon))
     return np.mean(-loss)
 
 def calculate_gradient(y, tx, w):
@@ -407,11 +409,215 @@ def reg_logistic_regression(y, x, lambda_, initial_w, max_iters, gamma):
     return w, np.array(loss) 
 
 
+# ------------------ STOCHASTIC ----------------------------
 
 
 
 
 
+
+def calculate_stochastic_gradient(y, tx, w, batch_size=1):
+    """
+    Computes the stochastic gradient of the logistic loss with respect to the weight vector.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The weight vector for the logistic regression model, of shape (n_features,).
+    
+    batch_size : int, optional
+        The number of samples to use for computing the stochastic gradient (default is 1).
+
+    Returns:
+    --------
+    numpy.ndarray
+        The stochastic gradient vector of shape (n_features,).
+    """
+    # Randomly select batch_size samples
+    n_samples = y.shape[0]
+    indices = np.random.choice(n_samples, batch_size, replace=False)  # random sample indices
+    y_batch = y[indices]
+    tx_batch = tx[indices]
+
+    # Compute prediction and gradient for the batch
+    pred = sigmoid(tx_batch.dot(w))
+    gradient = tx_batch.T.dot(pred - y_batch) / batch_size
+
+    return gradient
+
+
+
+
+def learning_by_gradient_descent_ridge_stoch(y, tx, w, gamma, lambda_, batch_size=1):
+    """
+    Performs one step of gradient descent for logistic regression with L2 regularization (Ridge).
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The current weight vector, of shape (n_features,).
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+    
+    lambda_ : float
+        The regularization parameter for Ridge regression.
+
+    Returns:
+    --------
+    float
+        The logistic loss after the weight update.
+    
+    numpy.ndarray
+        The updated weight vector, of shape (n_features,).
+    """
+    # Compute the gradient with L2 regularization term
+    gradient = calculate_stochastic_gradient(y, tx, w, batch_size) + 2 * lambda_ * w
+    # Update weights using gradient descent
+    w_new = w - gamma * gradient
+    loss = calculate_loss_logistic(y, tx, w_new)
+    return loss, w_new
+
+def learning_by_gradient_descent_stoch(y, tx, w, gamma, batch_size=1):
+    """
+    Performs one step of gradient descent for logistic regression without regularization.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    tx : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    w : numpy.ndarray
+        The current weight vector, of shape (n_features,).
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    float
+        The logistic loss after the weight update.
+    
+    numpy.ndarray
+        The updated weight vector, of shape (n_features,).
+    """
+    # Compute the gradient without regularization
+    gradient = calculate_stochastic_gradient(y, tx, w, batch_size)
+    # Update weights using gradient descent
+    w_new = w - gamma * gradient
+    loss = calculate_loss_logistic(y, tx, w_new)
+    return loss, w_new
+
+def logistic_regression_stoch(y, x, initial_w, max_iters, gamma, batch_size=1):
+    """
+    Performs logistic regression using gradient descent.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    x : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    initial_w : numpy.ndarray
+        The initial weights for the logistic regression model, of shape (n_features,).
+    
+    max_iters : int
+        The maximum number of iterations for the gradient descent algorithm.
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after training, of shape (n_features,).
+    
+    loss : numpy.ndarray
+        The final loss value associated with the optimal weights, with shape (0,).
+    """
+    # init parameters
+    threshold = 1e-8
+    losses = []
+
+    w = initial_w
+    loss = calculate_loss_logistic(y, x, w)
+    
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        loss, w = learning_by_gradient_descent_stoch(y, x, w, gamma,batch_size)
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    return w, np.array(loss) 
+
+
+def reg_logistic_regression_stoch(y, x, lambda_, initial_w, max_iters, gamma, batch_size=1):
+    """
+    Performs logistic regression with L2 regularization using gradient descent.
+
+    Parameters:
+    -----------
+    y : numpy.ndarray
+        The target binary values (0 or 1), of shape (n_samples,).
+    
+    x : numpy.ndarray
+        The feature matrix, of shape (n_samples, n_features).
+    
+    lambda_ : float
+        The regularization parameter to control the amount of L2 regularization.
+    
+    initial_w : numpy.ndarray
+        The initial weights for the logistic regression model, of shape (n_features,).
+    
+    max_iters : int
+        The maximum number of iterations for the gradient descent algorithm.
+    
+    gamma : float
+        The learning rate or step size for weight updates.
+
+    Returns:
+    --------
+    w : numpy.ndarray
+        The final weights after training with L2 regularization, of shape (n_features,).
+    
+    loss : numpy.ndarray
+        The final loss value associated with the optimal weights, with shape (0,).
+    """
+        # init parameters
+    threshold = 1e-8
+    losses = []
+
+    w = initial_w
+    loss = calculate_loss_logistic(y, x, w)
+    
+    # start the logistic regression
+    for iter in range(max_iters):
+        # get loss and update w.
+        loss, w = learning_by_gradient_descent_ridge_stoch(y, x, w, gamma, lambda_)
+        # converge criterion
+        losses.append(loss)
+        if len(losses) > 1 and np.abs(losses[-1] - losses[-2]) < threshold:
+            break
+    return w, np.array(loss) 
 
 
 

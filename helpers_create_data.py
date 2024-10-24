@@ -4,6 +4,7 @@ import numpy as np
 import os
 
 def sigmoid(t):
+    t = np.clip(t, -250, 250)  # Clip the input to avoid overflow
     return np.exp(t) / (1 + np.exp(t))
 
 def standardize(x, mean_x=None, std_x=None):
@@ -33,7 +34,7 @@ def standardize(x, mean_x=None, std_x=None):
     std_x : numpy.ndarray
         The standard deviation of each feature used for standardization.
     """
-    
+
     if mean_x is None:
         mean_x = np.nanmean(x, axis=0)
     x = x - mean_x
@@ -428,66 +429,36 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
             Processed training data.
         Y_train: numpy.ndarray
             Processed training labels.
-        X_val: numpy.ndarray
-            Processed validation data.
-        Y_val: numpy.ndarray
-            Processed validation labels.
         X_test: numpy.ndarray
             Processed test data.
     """
     # First extract all of the relevant features from the training data
-    X = extract_features(filename_train, x_train, onehotecode)
+    X_train = extract_features(filename_train, x_train, onehotecode)
     
     # Change all the elements with -1 by 0
-    y_train_working = y_train.copy()
-    y_train_working[y_train_working == -1] = 0
+    Y_train = y_train.copy()
+    Y_train[Y_train == -1] = 0
     # Make y have the correct shape
-    y_train_working = y_train_working.reshape(-1, 1)
+    Y_train = Y_train.reshape(-1, 1)
 
-    # Shuffle the data
-    np.random.seed(6)
-    indices = np.arange(X.shape[0])
-    np.random.shuffle(indices)
-    X_shuffled = X[indices]
-    y_train_working_shuffled = y_train_working[indices]
-
-    # Split the data into training and validation sets (90% training, 10% validation)
-    X_train, X_val, Y_train, Y_val = split_train_val(X_shuffled, y_train_working_shuffled, 10, 9)
-    
     means_ids = [0, 8, 12, 13] # IDs of features that should be replaced with the mean instead of the mode
     if replace:
         # Replace the missing values with the mean or mode of the feature, depending on the feature
         # Mean for continuous features and mode for others
-        # Do it for train and validation sets. For validation set, we replace by the mean/mode of the train set
         for i in range(X_train.shape[1]):
             if i in means_ids:
                 X_train[:, i] = replace_mean(X_train[:, i])
                 mean_value = np.nanmean(X_train[:, i])
-                X_val[:, i] = replace_mean(X_val[:, i], mean_value=mean_value)
             else:
                 X_train[:, i] = replace_mode(X_train[:, i])
                 unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
                 mode_value = unique[np.argmax(counts)]
-                X_val[:, i] = replace_mode(X_val[:, i], mode_value=mode_value)
     else:
         # Drop rows with NaN values in the training set
-        X_train, Y_train = drop_nan(X_train, Y_train)
-
-        # In validation set replace NaN values with the mean or mode of the train set
-        for i in range(X_val.shape[1]):
-            if i in means_ids:
-                mean_value = np.nanmean(X_train[:, i])
-                X_val[:, i] = replace_mean(X_val[:, i], mean_value=mean_value)
-            else:
-                unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
-                mode_value = unique[np.argmax(counts)]
-                X_val[:, i] = replace_mode(X_val[:, i], mode_value=mode_value)
+        X_train, Y_train = drop_nan(X_train, y_train)
 
     # Standardize the data
     X_train, X_train_mean, X_train_std = standardize(X_train)
-    # We strandardize the validation set with the mean/std of the train set 
-    X_val, _, _ = standardize(X_val, X_train_mean, X_train_std)
-
     
     X_test = extract_features(filename_test, x_test, onehotecode)
 
@@ -504,7 +475,7 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
     # Standardize the test data (with mean/std of the train set)
     X_test, _, _ = standardize(X_test, X_train_mean, X_train_std)
     
-    return X_train, Y_train, X_val, Y_val, X_test
+    return X_train, Y_train, X_test
 
 
 def undersampling(X, y):
@@ -640,7 +611,7 @@ def prediction(tx_test, w):
     y_test = (compute >= 0.5).astype(int)
     return y_test
     
-def percentage_well_predicted(true_labels, predicted_labels):
+def compute_accuracy(true_labels, predicted_labels):
     """
     Calculate the percentage of correctly predicted labels.
 
@@ -692,5 +663,82 @@ def f1(y_pred, y_true):
     fn = np.sum(y_pred[y_true == 1] == 0)
     precision = tp / (tp + fp)
     recall = tp / (tp + fn)
-    f1 = 2 * (precision * recall) / (precision + recall)
+    if (precision + recall) == 0:
+        f1 = 0
+    else:
+        f1 = 2 * (precision * recall) / (precision + recall)
     return f1
+
+def drop_rows_with_nan(dataset,y, threshold=0.6):
+    # Calculate the number of columns in the dataset
+    num_cols = dataset.shape[1]
+    
+    # Calculate the threshold for the number of NaN values
+    nan_threshold = threshold * num_cols
+    
+    # Create a mask where the number of NaNs in each row is less than or equal to the threshold
+    non_nan_rows = np.sum(np.isnan(dataset), axis=1) <= nan_threshold
+    
+    # Return the filtered dataset
+    return dataset[non_nan_rows], y[non_nan_rows]
+
+
+def process_datasets(x_train, x_test, unique_values_thresh=10):
+    """
+    Processes the datasets by handling categorical and numerical columns and removing columns with a threshold of unique value.
+    
+    Parameters:
+    -----------
+    x_train : numpy.ndarray
+        The training dataset to process, of shape (n_samples, n_features).
+    x_test : numpy.ndarray
+        The test dataset to process, of shape (n_samples, n_features).
+        
+    Returns:
+    --------
+    numpy.ndarray
+        The processed dataset with categorical columns replaced by mode and numerical columns with NaNs replaced by the mean.
+        Columns with a small number of value are removed for both the x_train and the x_test
+    """
+    processed_x_train = []
+    processed_x_test = []
+    threshold = 1e-6
+
+    # Iterate over each column
+    for i in range(x_train.shape[1]):
+        col_train = x_train[:, i]
+        col_test = x_test[:,i]
+        unique_values_train = np.unique(col_train[~np.isnan(col_train)])  # Get unique non-NaN values of train
+
+        if len(unique_values_train) < 2:
+            # If there's only one unique value in either x_train, skip this column (remove it)
+            continue
+            
+        elif len(unique_values_train) <= unique_values_thresh:
+            # If the column has a very low variance we just drop the column because this column doesn't give us any information and 
+            # we might get a 0 variance whenever we standardize which is very annoying
+            if np.nanstd(col_train) < threshold:
+                continue
+            else:
+                # Categorical column: Replace NaNs with the mode
+                # Use np.unique with return_counts to find the mode
+                values, counts = np.unique(col_train[~np.isnan(col_train)], return_counts=True)
+                mode = values[np.argmax(counts)]
+                col_train[np.isnan(col_train)] = mode
+                # we also replace the NaNs of the test set with the mode of the train set
+                col_test[np.isnan(col_test)] = mode
+        else:
+            # Numerical column: Replace NaNs with the mean
+            mean = np.nanmean(col_train)
+            col_train[np.isnan(col_train)] = mean
+            col_test[np.isnan(col_test)] = mean
+
+        # Append the processed column to the result
+        processed_x_train.append(col_train)
+        processed_x_test.append(col_test)
+
+    # Convert lists back to a NumPy array
+    processed_x_train = np.array(processed_x_train).T
+    processed_x_test = np.array(processed_x_test).T
+    
+    return processed_x_train, processed_x_test
