@@ -8,6 +8,6 @@ The relevant data (pushed through Git LFS) can be found in the ```dataset``` fol
 
 The provided helpers are found within the ```helpers.py``` file, while the required implementations are found in the ```implementations.py``` file. Our own helpers that we use are found in the ```helpers_create_data.py``` file.
 
-The process of hyperparameter tuning is conducted in the ```Project_final_editing.ipynb``` notebook, for all feature settings. The ```run_19.ipynb``` and the ```run_all.ipynb``` notebooks contain the process for the runs for the 19-feature and all-feature settings respectively, the former of which was used for the experimentation with data processing and balancing. Its results are shown in ```Scores.md```. 
+The process of hyperparameter tuning is conducted in the ```Hyperparameter_tuning.ipynb``` notebook, for all feature settings. The ```run_19.ipynb``` and the ```run_all.ipynb``` notebooks contain the process for the runs for the 19-feature and all-feature settings respectively, the former of which was used for the experimentation with data processing and balancing. Its results are shown in ```Scores.md```. 
 
-Finally, the ```run.py``` file contains the best-performing system that we have developed, which is that of the all-features model (one-hot encoded) with a learning rate gamma of 0.05 and a L2 regularisation lambda of 0.
+Finally, the ```run.py``` file contains the best-performing system that we have developed, which is that of the all-features model (one-hot encoded) with a learning rate gamma of 0.05 and a L2 regularisation lambda of 0. The output from running this code is the ```Submission_27_10_2024_21_56.csv``` file.

@@ -68,4 +68,4 @@ print('F1: ', f1(y_pred_test, Y_val))
 y_pred = prediction(X_test_all, w)
 y_pred[y_pred == 0] = -1
 
-create_csv_submission(test_ids, y_pred, "Submission_27.10.2024_21_56")
+create_csv_submission(test_ids, y_pred, "Submission_27_10_2024_21_56.csv")
