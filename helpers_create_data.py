@@ -225,259 +225,392 @@ def drop_nan(X, y):
     y = y[mask]
     return X, y
 
-def one_hot_encode(tx):
+def one_hot_encode(tx_train, tx_test, tx_val = None):
     """
-    Perform one-hot encoding on a categorical feature array.
+    Perform one-hot encoding on categorical feature arrays for training, validation, and test datasets.
     
     Parameters:
     -----
-    tx : numpy.ndarray
-        A 1D array of categorical feature data to be one-hot encoded.
+    tx_train : numpy.ndarray
+        A 1D array of categorical feature data for the training set.
+    
+    tx_val : numpy.ndarray
+        A 1D array of categorical feature data for the validation set.
+    
+    tx_test : numpy.ndarray
+        A 1D array of categorical feature data for the test set.
     
     Returns:
     --------
-    tx_one_hot : numpy.ndarray
-        A 2D array representing the one-hot encoded version of the input data.
-        Each unique category in `tx` is represented by a separate column, 
-        except for the 'nan' value, that is given up on.
-    """
-    unique_values = np.unique(tx)
-    n_unique = unique_values.size
-    tx_one_hot = np.zeros((tx.shape[0], n_unique-1))
+    tx_train_one_hot : numpy.ndarray
+        A 2D array representing the one-hot encoded version of the training set.
     
-    for i in range(tx.shape[0]):
-        tx_one_hot[i, np.where(unique_values == tx[i])[0]] = 1
+    tx_val_one_hot : numpy.ndarray
+        A 2D array representing the one-hot encoded version of the validation set.
+    
+    tx_test_one_hot : numpy.ndarray
+        A 2D array representing the one-hot encoded version of the test set.
+    """
+    # Combine all datasets to find unique values
+    if tx_val is None:
+        combined = np.concatenate((tx_train, tx_test))
+    else:
+        combined = np.concatenate((tx_train, tx_val, tx_test))
+    unique_values = np.unique(combined)
+    n_unique = unique_values.size
+    
+    # Initialize one-hot encoded arrays
+    tx_train_one_hot = np.zeros((tx_train.shape[0], n_unique))
+    if tx_val is not None:
+        tx_val_one_hot = np.zeros((tx_val.shape[0], n_unique))
+    tx_test_one_hot = np.zeros((tx_test.shape[0], n_unique))
+    
+    # Encode training set
+    for i in range(tx_train.shape[0]):
+        tx_train_one_hot[i, np.where(unique_values == tx_train[i])[0]] = 1
+    
+    # Encode validation set
+    if tx_val is not None:
+        for i in range(tx_val.shape[0]):
+            tx_val_one_hot[i, np.where(unique_values == tx_val[i])[0]] = 1
+    else:
+        tx_val_one_hot = None
+    
+    # Encode test set
+    for i in range(tx_test.shape[0]):
+        tx_test_one_hot[i, np.where(unique_values == tx_test[i])[0]] = 1
 
-    return tx_one_hot
+    return tx_train_one_hot, tx_test_one_hot, tx_val_one_hot
 
-def extract_features(filename, x, onehotencode):
+def extract_features(filename_train, filename_test, x_train, x_test, onehotencode):
     """
     Extracts and preprocesses a set of features from the provided data.
     
     Parameters:
     -----------
-    filename : str
-        Name of the CSV file from which the data is extracted
-        
-    x : array-like
-        The data matrix or feature set from which individual features are extracted.
-        
+    filename_train : str
+        Name of the CSV file from which the training data is extracted.
+    filename_test : str
+        Name of the CSV file from which the test data is extracted.
+    x_train : array-like
+        The training data matrix or feature set from which individual features are extracted.
+    x_test : array-like
+        The test data matrix or feature set from which individual features are extracted.
     onehotencode : bool
         If True, certain categorical features will be one-hot encoded.
 
     Returns:
     --------
-    X : numpy.ndarray
-        A 2D array of extracted and processed features, where rows correspond to samples 
-        and columns correspond to different features. The shape depends on the number of 
-        features and whether one-hot encoding is applied.
+    X_train : numpy.ndarray
+        A 2D array of extracted and processed features for the training set.
+    X_test : numpy.ndarray
+        A 2D array of extracted and processed features for the test set.
     """
 
-    #Here we manually extract all the features. 
-    #We replace the values corresponding to missig data / people not willing to answer by nans 
-    #that we will drop or replace by mean/mode later
-    
     ################Body mass idex - continuous feature
-    _BMI5 = extract_feature('_BMI5', filename, x)
+    _BMI5_train = extract_feature('_BMI5', filename_train, x_train)
 
     ################High blood pressure - categorical feature (1 = no, 2 = yes, 9 = missing)
-    _RFHYPE5 = extract_feature('_RFHYPE5', filename, x)
-    _RFHYPE5[_RFHYPE5 == 9] = np.nan
-    _RFHYPE5[_RFHYPE5 == 1] = 0
-    _RFHYPE5[_RFHYPE5 == 2] = 1
+    _RFHYPE5_train = extract_feature('_RFHYPE5', filename_train, x_train)
+    _RFHYPE5_train[_RFHYPE5_train == 9] = np.nan
+    _RFHYPE5_train[_RFHYPE5_train == 1] = 0
+    _RFHYPE5_train[_RFHYPE5_train == 2] = 1
 
     ################High cholesterol - categorical feature (1 = no, 2 = yes, 9 = missing)
-    _RFCHOL = extract_feature('_RFCHOL', filename, x)
-    _RFCHOL[_RFCHOL == 9] = np.nan
-    _RFCHOL[_RFCHOL == 1] = 0
-    _RFCHOL[_RFCHOL == 2] = 1        
+    _RFCHOL_train = extract_feature('_RFCHOL', filename_train, x_train)
+    _RFCHOL_train[_RFCHOL_train == 9] = np.nan
+    _RFCHOL_train[_RFCHOL_train == 1] = 0
+    _RFCHOL_train[_RFCHOL_train == 2] = 1        
 
     ################Smoking status - categorical feature (1 = every day, 2 = some days, 3 = formerly, 4 = never, 9 = missing)
-    _SMOKER3 = extract_feature('_SMOKER3', filename, x)
-    _SMOKER3[_SMOKER3 == 9] = np.nan 
+    _SMOKER3_train = extract_feature('_SMOKER3', filename_train, x_train)
+    _SMOKER3_train[_SMOKER3_train == 9] = np.nan 
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        _SMOKER3 = one_hot_encode(_SMOKER3)
 
     ################Has ever had a stroke  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
-    CVDSTRK3 = extract_feature('CVDSTRK3', filename, x)
-    CVDSTRK3[CVDSTRK3 == 9] = np.nan
-    CVDSTRK3[CVDSTRK3 == 7] = np.nan
-    CVDSTRK3[CVDSTRK3 == 2] = 0        
+    CVDSTRK3_train = extract_feature('CVDSTRK3', filename_train, x_train)
+    CVDSTRK3_train[CVDSTRK3_train == 9] = np.nan
+    CVDSTRK3_train[CVDSTRK3_train == 7] = np.nan
+    CVDSTRK3_train[CVDSTRK3_train == 2] = 0        
 
     ################Cholesterol checked  - categorical feature (1 = within the last 5 years, 2 = more than 5 years ago, 3 = never, 9 = missing)
-    _CHOLCHK = extract_feature('_CHOLCHK', filename, x)
-    _CHOLCHK[_CHOLCHK == 9] = np.nan        
+    _CHOLCHK_train = extract_feature('_CHOLCHK', filename_train, x_train)
+    _CHOLCHK_train[_CHOLCHK_train == 9] = np.nan        
 
     ################Has ever had diabetes  - categorical feature (1 = yes, 2 = yes*, 3 = no, 4 = no - pre-diabetes, 7 = don't know, 9 = missing)
-    DIABETE3 = extract_feature('DIABETE3', filename, x)
-    DIABETE3[DIABETE3 == 9] = np.nan
-    DIABETE3[DIABETE3 == 7] = np.nan
-    DIABETE3[DIABETE3 == 3] = 0
-    DIABETE3[DIABETE3 == 4] = 0
-    DIABETE3[DIABETE3 == 2] = 1        
+    DIABETE3_train = extract_feature('DIABETE3', filename_train, x_train)
+    DIABETE3_train[DIABETE3_train == 9] = np.nan
+    DIABETE3_train[DIABETE3_train == 7] = np.nan
+    DIABETE3_train[DIABETE3_train == 3] = 0
+    DIABETE3_train[DIABETE3_train == 4] = 0
+    DIABETE3_train[DIABETE3_train == 2] = 1        
 
     ################Physical activity index  - categorical feature (1 = highly active, 2 = active, 3 = insufficiently active, 4 = inactive, 9 = missing)
-    _PACAT1 = extract_feature('_PACAT1', filename, x)
-    _PACAT1[_PACAT1 == 9] = np.nan
+    _PACAT1_train = extract_feature('_PACAT1', filename_train, x_train)
+    _PACAT1_train[_PACAT1_train == 9] = np.nan
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        _PACAT1 = one_hot_encode(_PACAT1)
 
     ################Computed number of drinks of alcohol beverages per week  - continuous feature (99900 = missing)
-    _DRNKWEK = extract_feature('_DRNKWEK', filename, x)
-    _DRNKWEK[_DRNKWEK == 99900] = np.nan        
+    _DRNKWEK_train = extract_feature('_DRNKWEK', filename_train, x_train)
+    _DRNKWEK_train[_DRNKWEK_train == 99900] = np.nan        
 
     ################Have any healthcare coverage  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
-    HLTHPLN1 = extract_feature('HLTHPLN1', filename, x)
-    HLTHPLN1[HLTHPLN1 == 9] = np.nan
-    HLTHPLN1[HLTHPLN1 == 7] = np.nan
-    HLTHPLN1[HLTHPLN1 == 2] = 0        
+    HLTHPLN1_train = extract_feature('HLTHPLN1', filename_train, x_train)
+    HLTHPLN1_train[HLTHPLN1_train == 9] = np.nan
+    HLTHPLN1_train[HLTHPLN1_train == 7] = np.nan
+    HLTHPLN1_train[HLTHPLN1_train == 2] = 0        
 
     ################Could not see doctor because of cost  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
-    MEDCOST = extract_feature('MEDCOST', filename, x)
-    MEDCOST[MEDCOST == 9] = np.nan
-    MEDCOST[MEDCOST == 7] = np.nan
-    MEDCOST[MEDCOST == 2] = 0        
+    MEDCOST_train = extract_feature('MEDCOST', filename_train, x_train)
+    MEDCOST_train[MEDCOST_train == 9] = np.nan
+    MEDCOST_train[MEDCOST_train == 7] = np.nan
+    MEDCOST_train[MEDCOST_train == 2] = 0        
 
     ################General health status  - categorical feature (1 = excellent, 2 = very good, 3 = good, 4 = fair, 5 = poor, 7 = don't know, 9 = missing)
-    GENHLTH = extract_feature('GENHLTH', filename, x)
-    GENHLTH[GENHLTH == 9] = np.nan
-    GENHLTH[GENHLTH == 7] = np.nan 
+    GENHLTH_train = extract_feature('GENHLTH', filename_train, x_train)
+    GENHLTH_train[GENHLTH_train == 9] = np.nan
+    GENHLTH_train[GENHLTH_train == 7] = np.nan 
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        GENHLTH = one_hot_encode(GENHLTH)
 
     ################Number of days mental health not good  - continuous feature (88 = none, 77 = don't know, 99 = refused)
-    MENTHLTH = extract_feature('MENTHLTH', filename, x)
-    MENTHLTH[MENTHLTH == 88] = 0
-    MENTHLTH[MENTHLTH == 77] = np.nan
-    MENTHLTH[MENTHLTH == 99] = np.nan        
+    MENTHLTH_train = extract_feature('MENTHLTH', filename_train, x_train)
+    MENTHLTH_train[MENTHLTH_train == 88] = 0
+    MENTHLTH_train[MENTHLTH_train == 77] = np.nan
+    MENTHLTH_train[MENTHLTH_train == 99] = np.nan        
 
     ################Number of days physical health not good  - continuous feature (88 = none, 77 = don't know, 99 = refused)
-    PHYSHLTH = extract_feature('PHYSHLTH', filename, x)
-    PHYSHLTH[PHYSHLTH == 88] = 0
-    PHYSHLTH[PHYSHLTH == 77] = np.nan
-    PHYSHLTH[PHYSHLTH == 99] = np.nan        
+    PHYSHLTH_train = extract_feature('PHYSHLTH', filename_train, x_train)
+    PHYSHLTH_train[PHYSHLTH_train == 88] = 0
+    PHYSHLTH_train[PHYSHLTH_train == 77] = np.nan
+    PHYSHLTH_train[PHYSHLTH_train == 99] = np.nan        
 
     ################Difficulty walking or climbing stairs - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
-    DIFFWALK = extract_feature('DIFFWALK', filename, x)
-    DIFFWALK[DIFFWALK == 9] = np.nan
-    DIFFWALK[DIFFWALK == 7] = np.nan
-    DIFFWALK[DIFFWALK == 2] = 0        
+    DIFFWALK_train = extract_feature('DIFFWALK', filename_train, x_train)
+    DIFFWALK_train[DIFFWALK_train == 9] = np.nan
+    DIFFWALK_train[DIFFWALK_train == 7] = np.nan
+    DIFFWALK_train[DIFFWALK_train == 2] = 0        
 
     ################Sex - categorical feature (1 = male, 2 = female)
-    SEX = extract_feature('SEX', filename, x)
-    SEX[SEX == 2] = 0        
+    SEX_train = extract_feature('SEX', filename_train, x_train)
+    SEX_train[SEX_train == 2] = 0        
 
     ################Age  - categorical feature (1 = 18-24, ... 13 = 80+, 14 = missing)
-    _AGEG5YR = extract_feature('_AGEG5YR', filename, x)
-    _AGEG5YR[_AGEG5YR == 14] = np.nan 
+    _AGEG5YR_train = extract_feature('_AGEG5YR', filename_train, x_train)
+    _AGEG5YR_train[_AGEG5YR_train == 14] = np.nan 
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        _AGEG5YR = one_hot_encode(_AGEG5YR)
 
     ################Education  - categorical feature (1 = none, ... 6 = college grad, 9 = missing)
-    EDUCA = extract_feature('EDUCA', filename, x)
-    EDUCA[EDUCA == 9] = np.nan  
+    EDUCA_train = extract_feature('EDUCA', filename_train, x_train)
+    EDUCA_train[EDUCA_train == 9] = np.nan  
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        EDUCA = one_hot_encode(EDUCA)
 
     ################Income level  - categorical feature (1 = low, ... 5 = high, 9 = missing)
-    _INCOMG = extract_feature('_INCOMG', filename, x)
-    _INCOMG[_INCOMG == 9] = np.nan 
+    _INCOMG_train = extract_feature('_INCOMG', filename_train, x_train)
+    _INCOMG_train[_INCOMG_train == 9] = np.nan 
     #Here we have 3 or more categories -> hot encoding makes sense
-    if onehotencode: 
-        _INCOMG = one_hot_encode(_INCOMG)
 
-    X = []
+
+    # Now we do the same for the test set
+
+
+    ################Body mass idex - continuous feature
+    _BMI5_test = extract_feature('_BMI5', filename_test, x_test)
+
+    ################High blood pressure - categorical feature (1 = no, 2 = yes, 9 = missing)
+    _RFHYPE5_test = extract_feature('_RFHYPE5', filename_test, x_test)
+    _RFHYPE5_test[_RFHYPE5_test == 9] = np.nan
+    _RFHYPE5_test[_RFHYPE5_test == 1] = 0
+    _RFHYPE5_test[_RFHYPE5_test == 2] = 1
+
+    ################High cholesterol - categorical feature (1 = no, 2 = yes, 9 = missing)
+    _RFCHOL_test = extract_feature('_RFCHOL', filename_test, x_test)
+    _RFCHOL_test[_RFCHOL_test == 9] = np.nan
+    _RFCHOL_test[_RFCHOL_test == 1] = 0
+    _RFCHOL_test[_RFCHOL_test == 2] = 1        
+
+    ################Smoking status - categorical feature (1 = every day, 2 = some days, 3 = formerly, 4 = never, 9 = missing)
+    _SMOKER3_test = extract_feature('_SMOKER3', filename_test, x_test)
+    _SMOKER3_test[_SMOKER3_test == 9] = np.nan 
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    ################Has ever had a stroke  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
+    CVDSTRK3_test = extract_feature('CVDSTRK3', filename_test, x_test)
+    CVDSTRK3_test[CVDSTRK3_test == 9] = np.nan
+    CVDSTRK3_test[CVDSTRK3_test == 7] = np.nan
+    CVDSTRK3_test[CVDSTRK3_test == 2] = 0        
+
+    ################Cholesterol checked  - categorical feature (1 = within the last 5 years, 2 = more than 5 years ago, 3 = never, 9 = missing)
+    _CHOLCHK_test = extract_feature('_CHOLCHK', filename_test, x_test)
+    _CHOLCHK_test[_CHOLCHK_test == 9] = np.nan        
+
+    ################Has ever had diabetes  - categorical feature (1 = yes, 2 = yes*, 3 = no, 4 = no - pre-diabetes, 7 = don't know, 9 = missing)
+    DIABETE3_test = extract_feature('DIABETE3', filename_test, x_test)
+    DIABETE3_test[DIABETE3_test == 9] = np.nan
+    DIABETE3_test[DIABETE3_test == 7] = np.nan
+    DIABETE3_test[DIABETE3_test == 3] = 0
+    DIABETE3_test[DIABETE3_test == 4] = 0
+    DIABETE3_test[DIABETE3_test == 2] = 1        
+
+    ################Physical activity index  - categorical feature (1 = highly active, 2 = active, 3 = insufficiently active, 4 = inactive, 9 = missing)
+    _PACAT1_test = extract_feature('_PACAT1', filename_test, x_test)
+    _PACAT1_test[_PACAT1_test == 9] = np.nan
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    ################Computed number of drinks of alcohol beverages per week  - continuous feature (99900 = missing)
+    _DRNKWEK_test = extract_feature('_DRNKWEK', filename_test, x_test)
+    _DRNKWEK_test[_DRNKWEK_test == 99900] = np.nan        
+
+    ################Have any healthcare coverage  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
+    HLTHPLN1_test = extract_feature('HLTHPLN1', filename_test, x_test)
+    HLTHPLN1_test[HLTHPLN1_test == 9] = np.nan
+    HLTHPLN1_test[HLTHPLN1_test == 7] = np.nan
+    HLTHPLN1_test[HLTHPLN1_test == 2] = 0        
+
+    ################Could not see doctor because of cost  - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
+    MEDCOST_test = extract_feature('MEDCOST', filename_test, x_test)
+    MEDCOST_test[MEDCOST_test == 9] = np.nan
+    MEDCOST_test[MEDCOST_test == 7] = np.nan
+    MEDCOST_test[MEDCOST_test == 2] = 0        
+
+    ################General health status  - categorical feature (1 = excellent, 2 = very good, 3 = good, 4 = fair, 5 = poor, 7 = don't know, 9 = missing)
+    GENHLTH_test = extract_feature('GENHLTH', filename_test, x_test)
+    GENHLTH_test[GENHLTH_test == 9] = np.nan
+    GENHLTH_test[GENHLTH_test == 7] = np.nan 
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    ################Number of days mental health not good  - continuous feature (88 = none, 77 = don't know, 99 = refused)
+    MENTHLTH_test = extract_feature('MENTHLTH', filename_test, x_test)
+    MENTHLTH_test[MENTHLTH_test == 88] = 0
+    MENTHLTH_test[MENTHLTH_test == 77] = np.nan
+    MENTHLTH_test[MENTHLTH_test == 99] = np.nan        
+
+    ################Number of days physical health not good  - continuous feature (88 = none, 77 = don't know, 99 = refused)
+    PHYSHLTH_test = extract_feature('PHYSHLTH', filename_test, x_test)
+    PHYSHLTH_test[PHYSHLTH_test == 88] = 0
+    PHYSHLTH_test[PHYSHLTH_test == 77] = np.nan
+    PHYSHLTH_test[PHYSHLTH_test == 99] = np.nan        
+
+    ################Difficulty walking or climbing stairs - categorical feature (1 = yes, 2 = no, 7 = don't know, 9 = missing)
+    DIFFWALK_test = extract_feature('DIFFWALK', filename_test, x_test)
+    DIFFWALK_test[DIFFWALK_test == 9] = np.nan
+    DIFFWALK_test[DIFFWALK_test == 7] = np.nan
+    DIFFWALK_test[DIFFWALK_test == 2] = 0        
+
+    ################Sex - categorical feature (1 = male, 2 = female)
+    SEX_test = extract_feature('SEX', filename_test, x_test)
+    SEX_test[SEX_test == 2] = 0        
+
+    ################Age  - categorical feature (1 = 18-24, ... 13 = 80+, 14 = missing)
+    _AGEG5YR_test = extract_feature('_AGEG5YR', filename_test, x_test)
+    _AGEG5YR_test[_AGEG5YR_test == 14] = np.nan 
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    ################Education  - categorical feature (1 = none, ... 6 = college grad, 9 = missing)
+    EDUCA_test = extract_feature('EDUCA', filename_test, x_test)
+    EDUCA_test[EDUCA_test == 9] = np.nan  
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    ################Income level  - categorical feature (1 = low, ... 5 = high, 9 = missing)
+    _INCOMG_test = extract_feature('_INCOMG', filename_test, x_test)
+    _INCOMG_test[_INCOMG_test == 9] = np.nan 
+    #Here we have 3 or more categories -> hot encoding makes sense
+
+    if onehotencode:
+        _SMOKER3_train, _SMOKER3_test, _ = one_hot_encode(_SMOKER3_train, _SMOKER3_test)
+        _PACAT1_train, _PACAT1_test, _ = one_hot_encode(_PACAT1_train, _PACAT1_test)
+        GENHLTH_train, GENHLTH_test, _ = one_hot_encode(GENHLTH_train, GENHLTH_test)
+        _AGEG5YR_train, _AGEG5YR_test, _ = one_hot_encode(_AGEG5YR_train, _AGEG5YR_test)
+        EDUCA_train, EDUCA_test, _ = one_hot_encode(EDUCA_train, EDUCA_test)
+        _INCOMG_train, _INCOMG_test, _ = one_hot_encode(_INCOMG_train, _INCOMG_test)
+
+    X_train = []
+    X_test = []
     #Here we stack the features together (depending if we want to hot one encode or not) to have the our new X
     if onehotencode:
-        X = np.hstack((_BMI5.reshape(-1, 1), _RFHYPE5.reshape(-1, 1), _RFCHOL.reshape(-1, 1), _SMOKER3, CVDSTRK3.reshape(-1, 1), _CHOLCHK.reshape(-1, 1), DIABETE3.reshape(-1, 1), _PACAT1, _DRNKWEK.reshape(-1, 1), HLTHPLN1.reshape(-1, 1), MEDCOST.reshape(-1, 1), GENHLTH, MENTHLTH.reshape(-1, 1), PHYSHLTH.reshape(-1, 1), DIFFWALK.reshape(-1, 1), SEX.reshape(-1, 1), _AGEG5YR, EDUCA, _INCOMG))
-
+        X_train = np.hstack((_BMI5_train.reshape(-1, 1), _RFHYPE5_train.reshape(-1, 1), _RFCHOL_train.reshape(-1, 1), _SMOKER3_train, CVDSTRK3_train.reshape(-1, 1), _CHOLCHK_train.reshape(-1, 1), DIABETE3_train.reshape(-1, 1), _PACAT1_train, _DRNKWEK_train.reshape(-1, 1), HLTHPLN1_train.reshape(-1, 1), MEDCOST_train.reshape(-1, 1), GENHLTH_train, MENTHLTH_train.reshape(-1, 1), PHYSHLTH_train.reshape(-1, 1), DIFFWALK_train.reshape(-1, 1), SEX_train.reshape(-1, 1), _AGEG5YR_train, EDUCA_train, _INCOMG_train))
+        X_test = np.hstack((_BMI5_test.reshape(-1, 1), _RFHYPE5_test.reshape(-1, 1), _RFCHOL_test.reshape(-1, 1), _SMOKER3_test, CVDSTRK3_test.reshape(-1, 1), _CHOLCHK_test.reshape(-1, 1), DIABETE3_test.reshape(-1, 1), _PACAT1_test, _DRNKWEK_test.reshape(-1, 1), HLTHPLN1_test.reshape(-1, 1), MEDCOST_test.reshape(-1, 1), GENHLTH_test, MENTHLTH_test.reshape(-1, 1), PHYSHLTH_test.reshape(-1, 1), DIFFWALK_test.reshape(-1, 1), SEX_test.reshape(-1, 1), _AGEG5YR_test, EDUCA_test, _INCOMG_test))
     else:
-        X = np.hstack((_BMI5.reshape(-1, 1), _RFHYPE5.reshape(-1, 1), _RFCHOL.reshape(-1, 1), _SMOKER3.reshape(-1, 1), CVDSTRK3.reshape(-1, 1), _CHOLCHK.reshape(-1, 1), DIABETE3.reshape(-1, 1), _PACAT1.reshape(-1, 1), _DRNKWEK.reshape(-1, 1), HLTHPLN1.reshape(-1, 1), MEDCOST.reshape(-1, 1), GENHLTH.reshape(-1, 1), MENTHLTH.reshape(-1, 1), PHYSHLTH.reshape(-1, 1), DIFFWALK.reshape(-1, 1), SEX.reshape(-1, 1), _AGEG5YR.reshape(-1, 1), EDUCA.reshape(-1, 1), _INCOMG.reshape(-1, 1)))
+        X_train = np.hstack((_BMI5_train.reshape(-1, 1), _RFHYPE5_train.reshape(-1, 1), _RFCHOL_train.reshape(-1, 1), _SMOKER3_train.reshape(-1, 1), CVDSTRK3_train.reshape(-1, 1), _CHOLCHK_train.reshape(-1, 1), DIABETE3_train.reshape(-1, 1), _PACAT1_train.reshape(-1, 1), _DRNKWEK_train.reshape(-1, 1), HLTHPLN1_train.reshape(-1, 1), MEDCOST_train.reshape(-1, 1), GENHLTH_train.reshape(-1, 1), MENTHLTH_train.reshape(-1, 1), PHYSHLTH_train.reshape(-1, 1), DIFFWALK_train.reshape(-1, 1), SEX_train.reshape(-1, 1), _AGEG5YR_train.reshape(-1, 1), EDUCA_train.reshape(-1, 1), _INCOMG_train.reshape(-1, 1)))
+        X_test = np.hstack((_BMI5_test.reshape(-1, 1), _RFHYPE5_test.reshape(-1, 1), _RFCHOL_test.reshape(-1, 1), _SMOKER3_test.reshape(-1, 1), CVDSTRK3_test.reshape(-1, 1), _CHOLCHK_test.reshape(-1, 1), DIABETE3_test.reshape(-1, 1), _PACAT1_test.reshape(-1, 1), _DRNKWEK_test.reshape(-1, 1), HLTHPLN1_test.reshape(-1, 1), MEDCOST_test.reshape(-1, 1), GENHLTH_test.reshape(-1, 1), MENTHLTH_test.reshape(-1, 1), PHYSHLTH_test.reshape(-1, 1), DIFFWALK_test.reshape(-1, 1), SEX_test.reshape(-1, 1), _AGEG5YR_test.reshape(-1, 1), EDUCA_test.reshape(-1, 1), _INCOMG_test.reshape(-1, 1)))
+    return X_train, X_test
 
-    return X
 
-
-
-def make_data_k_fold(filename_train, filename_test, x_train, x_test, y_train, replace=False, onehotecode = False):
-    """
-    Extract features from the training and test data, and process them.
-    Selects the relevant features from the data, processes NaN values, and standardizes the data.
+# THIS IS NOT FIXED YET
+# def make_data_k_fold(filename_train, filename_test, x_train, x_test, y_train, replace=False, onehotecode = False):
+#     """
+#     Extract features from the training and test data, and process them.
+#     Selects the relevant features from the data, processes NaN values, and standardizes the data.
     
-    Parameters:
-    -----------
-        filename_train: str
-            Name of the training CSV file.
-        filename_test: str
-            Name of the test CSV file.
-        x_train: numpy.ndarray
-            Training data.
-        x_test: numpy.ndarray
-            Test data.
-        y_train: numpy.ndarray
-            Training labels.
-        replace: bool
-            Whether to replace NaN values with the mean/mode of the feature.
-        onhotecode: bool
-            Whether to one-hot-encode some of the categorical features
+#     Parameters:
+#     -----------
+#         filename_train: str
+#             Name of the training CSV file.
+#         filename_test: str
+#             Name of the test CSV file.
+#         x_train: numpy.ndarray
+#             Training data.
+#         x_test: numpy.ndarray
+#             Test data.
+#         y_train: numpy.ndarray
+#             Training labels.
+#         replace: bool
+#             Whether to replace NaN values with the mean/mode of the feature.
+#         onhotecode: bool
+#             Whether to one-hot-encode some of the categorical features
     
-    Returns:
-    --------
-        X_train: numpy.ndarray
-            Processed training data.
-        Y_train: numpy.ndarray
-            Processed training labels.
-        X_test: numpy.ndarray
-            Processed test data.
-    """
-    # First extract all of the relevant features from the training data
-    X_train = extract_features(filename_train, x_train, onehotecode)
+#     Returns:
+#     --------
+#         X_train: numpy.ndarray
+#             Processed training data.
+#         Y_train: numpy.ndarray
+#             Processed training labels.
+#         X_test: numpy.ndarray
+#             Processed test data.
+#     """
+#     # First extract all of the relevant features from the training data
+#     X_train = extract_features(filename_train, x_train, onehotecode)
     
-    # Change all the elements with -1 by 0
-    Y_train = y_train.copy()
-    Y_train[Y_train == -1] = 0
-    # Make y have the correct shape
-    Y_train = Y_train.reshape(-1, 1)
+#     # Change all the elements with -1 by 0
+#     Y_train = y_train.copy()
+#     Y_train[Y_train == -1] = 0
+#     # Make y have the correct shape
+#     Y_train = Y_train.reshape(-1, 1)
 
-    means_ids = [0, 8, 12, 13] # IDs of features that should be replaced with the mean instead of the mode
-    if replace:
-        # Replace the missing values with the mean or mode of the feature, depending on the feature
-        # Mean for continuous features and mode for others
-        for i in range(X_train.shape[1]):
-            if i in means_ids:
-                X_train[:, i] = replace_mean(X_train[:, i])
-                mean_value = np.nanmean(X_train[:, i])
-            else:
-                X_train[:, i] = replace_mode(X_train[:, i])
-                unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
-                mode_value = unique[np.argmax(counts)]
-    else:
-        # Drop rows with NaN values in the training set
-        X_train, Y_train = drop_nan(X_train, y_train)
+#     means_ids = [0, 8, 12, 13] # IDs of features that should be replaced with the mean instead of the mode
+#     if replace:
+#         # Replace the missing values with the mean or mode of the feature, depending on the feature
+#         # Mean for continuous features and mode for others
+#         for i in range(X_train.shape[1]):
+#             if i in means_ids:
+#                 X_train[:, i] = replace_mean(X_train[:, i])
+#                 mean_value = np.nanmean(X_train[:, i])
+#             else:
+#                 X_train[:, i] = replace_mode(X_train[:, i])
+#                 unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
+#                 mode_value = unique[np.argmax(counts)]
+#     else:
+#         # Drop rows with NaN values in the training set
+#         X_train, Y_train = drop_nan(X_train, y_train)
 
-    # Standardize the data
-    X_train, X_train_mean, X_train_std = standardize(X_train)
+#     # Standardize the data
+#     X_train, X_train_mean, X_train_std = standardize(X_train)
     
-    X_test = extract_features(filename_test, x_test, onehotecode)
+#     X_test = extract_features(filename_test, x_test, onehotecode)
 
-    # We replace the missing values in the test set with the mean/mode (of the train set) of the feature, depending on the feature
-    for i in range(X_test.shape[1]):
-        if i in means_ids:
-            mean_value = np.nanmean(X_train[:, i])
-            X_test[:, i] = replace_mean(X_test[:, i], mean_value=mean_value)
-        else:
-            unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
-            mode_value = unique[np.argmax(counts)]
-            X_test[:, i] = replace_mode(X_test[:, i], mode_value=mode_value)
+#     # We replace the missing values in the test set with the mean/mode (of the train set) of the feature, depending on the feature
+#     for i in range(X_test.shape[1]):
+#         if i in means_ids:
+#             mean_value = np.nanmean(X_train[:, i])
+#             X_test[:, i] = replace_mean(X_test[:, i], mean_value=mean_value)
+#         else:
+#             unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
+#             mode_value = unique[np.argmax(counts)]
+#             X_test[:, i] = replace_mode(X_test[:, i], mode_value=mode_value)
     
-    # Standardize the test data (with mean/std of the train set)
-    X_test, _, _ = standardize(X_test, X_train_mean, X_train_std)
+#     # Standardize the test data (with mean/std of the train set)
+#     X_test, _, _ = standardize(X_test, X_train_mean, X_train_std)
     
-    return X_train, Y_train, X_test
+#     return X_train, Y_train, X_test
 
 
 
@@ -517,7 +650,7 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
             Processed test data.
     """
     # First extract all of the relevant features from the training data
-    X = extract_features(filename_train, x_train, onehotecode)
+    X_train, X_test = extract_features(filename_train, filename_test, x_train, x_test, onehotecode)
     
     # Change all the elements with -1 by 0
     y_train_working = y_train.copy()
@@ -527,9 +660,9 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
 
     # Shuffle the data
     np.random.seed(6)
-    indices = np.arange(X.shape[0])
+    indices = np.arange(X_train.shape[0])
     np.random.shuffle(indices)
-    X_shuffled = X[indices]
+    X_shuffled = X_train[indices]
     y_train_working_shuffled = y_train_working[indices]
 
     # Split the data into training and validation sets (90% training, 10% validation)
@@ -544,12 +677,24 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
             if i in means_ids:
                 X_train[:, i] = replace_mean(X_train[:, i])
                 mean_value = np.nanmean(X_train[:, i])
+                std_value = np.nanstd(X_train[:, i])
+                # Standardize the data
+                X_train[:, i] = (X_train[:, i] - mean_value) / std_value
+
+                # Replace the missing values in the validation set with the mean of the feature in the train set and standardize
                 X_val[:, i] = replace_mean(X_val[:, i], mean_value=mean_value)
+                X_val[:, i] = (X_val[:, i] - mean_value) / std_value
+                
+                # Replace the missing values in the test set with the mean of the feature in the train set and standardize
+                X_test[:, i] = replace_mean(X_test[:, i], mean_value=mean_value)
+                X_test[:, i] = (X_test[:, i] - mean_value) / std_value
             else:
                 X_train[:, i] = replace_mode(X_train[:, i])
                 unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
                 mode_value = unique[np.argmax(counts)]
                 X_val[:, i] = replace_mode(X_val[:, i], mode_value=mode_value)
+                X_test[:, i] = replace_mode(X_test[:, i], mode_value=mode_value)
+
     else:
         # Drop rows with NaN values in the training set
         X_train, Y_train = drop_nan(X_train, Y_train)
@@ -558,32 +703,26 @@ def make_data(filename_train, filename_test, x_train, x_test, y_train, replace=F
         for i in range(X_val.shape[1]):
             if i in means_ids:
                 mean_value = np.nanmean(X_train[:, i])
+                std_value = np.nanstd(X_train[:, i])
+
                 X_val[:, i] = replace_mean(X_val[:, i], mean_value=mean_value)
+                X_val[:, i] = (X_val[:, i] - mean_value) / std_value
+
+                X_test[:, i] = replace_mean(X_test[:, i], mean_value=mean_value)
+                X_test[:, i] = (X_test[:, i] - mean_value) / std_value
             else:
                 unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
                 mode_value = unique[np.argmax(counts)]
                 X_val[:, i] = replace_mode(X_val[:, i], mode_value=mode_value)
+                X_test[:, i] = replace_mode(X_test[:, i], mode_value=mode_value)
 
-    # Standardize the data
-    X_train, X_train_mean, X_train_std = standardize(X_train)
-    # We strandardize the validation set with the mean/std of the train set 
-    X_val, _, _ = standardize(X_val, X_train_mean, X_train_std)
+    if not onehotecode:
+        # Standardize the data
+        X_train, X_train_mean, X_train_std = standardize(X_train)
+        # We standardize the validation set with the mean/std of the train set 
+        X_val, _, _ = standardize(X_val, X_train_mean, X_train_std)
+        X_test, _, _ = standardize(X_test, X_train_mean, X_train_std)
 
-    
-    X_test = extract_features(filename_test, x_test, onehotecode)
-
-    # We replace the missing values in the test set with the mean/mode (of the train set) of the feature, depending on the feature
-    for i in range(X_test.shape[1]):
-        if i in means_ids:
-            mean_value = np.nanmean(X_train[:, i])
-            X_test[:, i] = replace_mean(X_test[:, i], mean_value=mean_value)
-        else:
-            unique, counts = np.unique(X_train[:, i][~np.isnan(X_train[:, i])], return_counts=True)
-            mode_value = unique[np.argmax(counts)]
-            X_test[:, i] = replace_mode(X_test[:, i], mode_value=mode_value)
-    
-    # Standardize the test data (with mean/std of the train set)
-    X_test, _, _ = standardize(X_test, X_train_mean, X_train_std)
     
     return X_train, Y_train, X_val, Y_val, X_test
 
@@ -793,65 +932,66 @@ def drop_rows_with_nan(dataset,y, threshold=0.6):
     return dataset[non_nan_rows], y[non_nan_rows]
 
 
-def process_datasets_k_fold(x_train, x_test, unique_values_thresh=10):
-    """
-    Processes the datasets by handling categorical and numerical columns and removing columns with a threshold of unique value.
+# THIS IS NOT FIXED YET
+# def process_datasets_k_fold(x_train, x_test, unique_values_thresh=10):
+#     """
+#     Processes the datasets by handling categorical and numerical columns and removing columns with a threshold of unique value.
     
-    Parameters:
-    -----------
-    x_train : numpy.ndarray
-        The training dataset to process, of shape (n_samples, n_features).
-    x_test : numpy.ndarray
-        The test dataset to process, of shape (n_samples, n_features).
+#     Parameters:
+#     -----------
+#     x_train : numpy.ndarray
+#         The training dataset to process, of shape (n_samples, n_features).
+#     x_test : numpy.ndarray
+#         The test dataset to process, of shape (n_samples, n_features).
         
-    Returns:
-    --------
-    numpy.ndarray
-        The processed dataset with categorical columns replaced by mode and numerical columns with NaNs replaced by the mean.
-        Columns with a small number of value are removed for both the x_train and the x_test
-    """
-    processed_x_train = []
-    processed_x_test = []
-    threshold = 1e-6
+#     Returns:
+#     --------
+#     numpy.ndarray
+#         The processed dataset with categorical columns replaced by mode and numerical columns with NaNs replaced by the mean.
+#         Columns with a small number of value are removed for both the x_train and the x_test
+#     """
+#     processed_x_train = []
+#     processed_x_test = []
+#     threshold = 1e-6
 
-    # Iterate over each column
-    for i in range(x_train.shape[1]):
-        col_train = x_train[:, i]
-        col_test = x_test[:,i]
-        unique_values_train = np.unique(col_train[~np.isnan(col_train)])  # Get unique non-NaN values of train
+#     # Iterate over each column
+#     for i in range(x_train.shape[1]):
+#         col_train = x_train[:, i]
+#         col_test = x_test[:,i]
+#         unique_values_train = np.unique(col_train[~np.isnan(col_train)])  # Get unique non-NaN values of train
 
-        if len(unique_values_train) < 2:
-            # If there's only one unique value in either x_train, skip this column (remove it)
-            continue
+#         if len(unique_values_train) < 2:
+#             # If there's only one unique value in either x_train, skip this column (remove it)
+#             continue
             
-        elif len(unique_values_train) <= unique_values_thresh:
-            # If the column has a very low variance we just drop the column because this column doesn't give us any information and 
-            # we might get a 0 variance whenever we standardize which is very annoying
-            if np.nanstd(col_train) < threshold:
-                continue
-            else:
-                # Categorical column: Replace NaNs with the mode
-                # Use np.unique with return_counts to find the mode
-                values, counts = np.unique(col_train[~np.isnan(col_train)], return_counts=True)
-                mode = values[np.argmax(counts)]
-                col_train[np.isnan(col_train)] = mode
-                # we also replace the NaNs of the test set with the mode of the train set
-                col_test[np.isnan(col_test)] = mode
-        else:
-            # Numerical column: Replace NaNs with the mean
-            mean = np.nanmean(col_train)
-            col_train[np.isnan(col_train)] = mean
-            col_test[np.isnan(col_test)] = mean
+#         elif len(unique_values_train) <= unique_values_thresh:
+#             # If the column has a very low variance we just drop the column because this column doesn't give us any information and 
+#             # we might get a 0 variance whenever we standardize which is very annoying
+#             if np.nanstd(col_train) < threshold:
+#                 continue
+#             else:
+#                 # Categorical column: Replace NaNs with the mode
+#                 # Use np.unique with return_counts to find the mode
+#                 values, counts = np.unique(col_train[~np.isnan(col_train)], return_counts=True)
+#                 mode = values[np.argmax(counts)]
+#                 col_train[np.isnan(col_train)] = mode
+#                 # we also replace the NaNs of the test set with the mode of the train set
+#                 col_test[np.isnan(col_test)] = mode
+#         else:
+#             # Numerical column: Replace NaNs with the mean
+#             mean = np.nanmean(col_train)
+#             col_train[np.isnan(col_train)] = mean
+#             col_test[np.isnan(col_test)] = mean
 
-        # Append the processed column to the result
-        processed_x_train.append(col_train)
-        processed_x_test.append(col_test)
+#         # Append the processed column to the result
+#         processed_x_train.append(col_train)
+#         processed_x_test.append(col_test)
 
-    # Convert lists back to a NumPy array
-    processed_x_train = np.array(processed_x_train).T
-    processed_x_test = np.array(processed_x_test).T
+#     # Convert lists back to a NumPy array
+#     processed_x_train = np.array(processed_x_train).T
+#     processed_x_test = np.array(processed_x_test).T
     
-    return processed_x_train, processed_x_test
+#     return processed_x_train, processed_x_test
 
 def process_datasets(x_train, x_val, x_test, unique_values_thresh=10):
     """
@@ -902,6 +1042,15 @@ def process_datasets(x_train, x_val, x_test, unique_values_thresh=10):
                 # we also replace the NaNs of the test set with the mode of the train set
                 col_val[np.isnan(col_val)] = mode
                 col_test[np.isnan(col_test)] = mode
+
+                # Apply one-hot encoding
+                col_train_encoded, col_test_encoded, col_val_encoded = one_hot_encode(col_train, col_test, tx_val=col_val)
+
+                # Append the encoded columns to the result
+                processed_x_train.append(col_train_encoded)
+                processed_x_val.append(col_val_encoded)
+                processed_x_test.append(col_test_encoded)
+
         else:
             # Numerical column: Replace NaNs with the mean
             mean = np.nanmean(col_train)
@@ -909,14 +1058,20 @@ def process_datasets(x_train, x_val, x_test, unique_values_thresh=10):
             col_val[np.isnan(col_val)] = mean
             col_test[np.isnan(col_test)] = mean
 
-        # Append the processed column to the result
-        processed_x_train.append(col_train)
-        processed_x_val.append(col_val)
-        processed_x_test.append(col_test)
+            # Standardize the column
+            std = np.nanstd(col_train)
+            col_train = (col_train - mean) / std
+            col_val = (col_val - mean) / std
+            col_test = (col_test - mean) / std
+
+            # Append the processed column to the result
+            processed_x_train.append(col_train.reshape(-1, 1))
+            processed_x_val.append(col_val.reshape(-1, 1))
+            processed_x_test.append(col_test.reshape(-1, 1))
 
     # Convert lists back to a NumPy array
-    processed_x_train = np.array(processed_x_train).T
-    processed_x_val = np.array(processed_x_val).T
-    processed_x_test = np.array(processed_x_test).T
+    processed_x_train = np.hstack(processed_x_train)
+    processed_x_val = np.hstack(processed_x_val)
+    processed_x_test = np.hstack(processed_x_test)
     
     return processed_x_train, processed_x_val, processed_x_test
