@@ -10,4 +10,4 @@ The provided helpers are found within the ```helpers.py``` file, while the requi
 
 The process of hyperparameter tuning is conducted in the ```Hyperparameter_tuning.ipynb``` notebook, for all feature settings. The ```run_19.ipynb``` and the ```run_all.ipynb``` notebooks contain the process for the runs for the 19-feature and all-feature settings respectively, the former of which was used for the experimentation with data processing and balancing. Its results are shown in ```Scores.md```. 
 
-Finally, the ```run_all.ipynb``` file is also the best-performing system that we have developed, which is that of the all-features model (one-hot encoded) with a learning rate gamma of 0.05 and a L2 regularisation lambda of 0. The output from running this code is the ```Submission_27_10_2024_13_52``` file which corresponds to our best result on AIcrowd.
+Finally, the ```run_all.ipynb``` file is also the best-performing system that we have developed, which is that of the all-features model (one-hot encoded) with a learning rate gamma of 0.05 and a L2 regularisation lambda of 0. The output from running this code is the best performing result on AIcrowd.
