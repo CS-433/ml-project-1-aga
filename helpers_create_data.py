@@ -4,7 +4,6 @@ import numpy as np
 import os
 
 def sigmoid(t):
-    t = np.clip(t, -250, 250)  # Clip the input to avoid overflow
     return np.exp(t) / (1 + np.exp(t))
 
 def standardize(x, mean_x=None, std_x=None):
